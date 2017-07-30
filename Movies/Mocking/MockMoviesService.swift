@@ -10,24 +10,30 @@ import Foundation
 
 class MockMoviesService: MoviesService {
     
-    let delay: TimeInterval?
-    let movies: [Movie]
-    
-    init(movies: [Movie] = MockMoviesService.makeMockMovies(),
-         delay: TimeInterval? = nil) {
-        self.delay = delay
-        self.movies = movies
+    enum Error: Swift.Error {
+        case fetchFailed
     }
     
-    func fetchMovies(_ completion: @escaping (([Movie]) -> Void)) {
-        if let delay = delay {
-            let deadline = DispatchTime.now() + delay
-            DispatchQueue.main.asyncAfter(deadline: deadline) { [weak self] in
-                guard let strongSelf = self else { return }
-                completion(strongSelf.movies)
+    let delay: TimeInterval?
+    let movies: [Movie]
+    let errorRate: Float
+    
+    init(movies: [Movie] = MockMoviesService.makeMockMovies(),
+         delay: TimeInterval? = nil,
+         errorRate: Float = 0.0) {
+        self.delay = delay
+        self.movies = movies
+        self.errorRate = errorRate
+    }
+    
+    func fetchMovies(_ completion: @escaping ((Result<[Movie]>) -> Void)) {
+        executeInMock(afterDelay: delay) { [weak self] in
+            guard let strongSelf = self else { return }
+            if randomizer.randomBool(withRate: strongSelf.errorRate) {
+                completion(Result.failure(Error.fetchFailed))
+            } else {
+                completion(Result.success(strongSelf.movies))
             }
-        } else {
-            completion(movies)
         }
     }
     
